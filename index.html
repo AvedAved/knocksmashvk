@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | Cannon Chaos - Smash Them All</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+
+<script src="GameAnalytics.min.js"></script>
+<script>
+    try {
+        if (typeof gameanalytics !== 'undefined' && gameanalytics.GameAnalytics) {
+            gameanalytics.GameAnalytics.configureBuild("0.1"); 
+            gameanalytics.GameAnalytics.initialize("9c00058730c6f8c351d41e9a5d21ecbf", "af4ff1504e12de48814b9d73cdf05fed47555020");
+        } else {
+            //console.warn("[Analytics] Скрипт GameAnalytics не загружен (возможно, заблокирован AdBlock).");
+        }
+    } catch (error) {
+        //console.error("[Analytics] Ошибка при инициализации:", error);
+    }
+</script>
+<script src="https://avedaved.github.io/browser.min.js"></script>
+
+  </head>
+  <body>
+    <div id="unity-container" style = "position: absolute; width: 100%; height: 100%; left: 0%; top: 0%;">
+      <canvas id="unity-canvas" style = "position: absolute; width: 100%; height: 100%;"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+    </div>
+
+    <script>
+      var gameInited = false;
+
+      vkBridge.send('VKWebAppInit')
+        .then((data) => { 
+          if (data.result) {
+            gameInited = true;
+
+              vkBridge.send('VKWebAppShowBannerAd', {
+            banner_location: 'bottom',
+            can_close: false
+            })
+           .then((data) => { 
+              if (data.result) {
+              }
+            })
+            .catch((error) => {
+              console.log(error);
+            });
+            
+            console.log("GAME RESULT WAS INITED");
+          } else {
+             console.log("GAME RESULT INIT ERROR");
+          }
+        })
+        .catch((error) => {
+          // Ошибка
+          console.log("GAME INIT ERROR");
+          console.log(error);
+        });
+    </script>
+
+    <script>
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      canvas.addEventListener("touchstart", function(){
+          if(!document.hasFocus()){
+            window.focus();
+          }
+        });
+      canvas.addEventListener("pointerdown", function(){
+          if(!document.hasFocus()){
+            window.focus();
+          }
+        });
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/b23dd96997961653e2825455633aac82.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/1d3b52af6356764bea218212045d6d67.data.unityweb",
+        frameworkUrl: buildUrl + "/22dba3c4ce8f9c5d04add85b34eae46f.framework.js.unityweb",
+        codeUrl: buildUrl + "/c7099af413e68c8d593ac2bef5d9d80a.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Avlerm",
+        productName: "Cannon Chaos - Smash Them All",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+      }
+
+      var myGameInstance = null;
+
+      loadingBar.style.display = "block";
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                myGameInstance = unityInstance;
+                loadingBar.style.display = "none";
+              }).catch((message) => {
+                alert(message);
+              });
+            };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
